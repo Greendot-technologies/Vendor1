@@ -1,33 +1,4 @@
-// import React from "react";
-// import SearchCard from "../components/SearchCard";
-// import Navbar from "../components/Navbar";
-// import bgImage from "../assets/images/back.jpg";
-// import { useNavigate } from "react-router-dom";
 
-// const Home = ({ onLoginSuccess, adminData, onLogout, setAdminData }) => {
-//   const navigate = useNavigate();
-
-//   return (
-//     <div
-//       className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center"
-//       style={{ backgroundImage: `url(${bgImage})` }}
-//     >
-//       <Navbar
-//         onGetStarted={() => navigate("/admin-signup")} // Example: Redirect to signup page
-//         // adminData={adminData}
-//         // onLogout={onLogout}
-//         // setAdminData={setAdminData} // Pass setAdminData to Navbar
-//         // onLoginSuccess={onLoginSuccess} // Pass onLoginSuccess to Navbar
-//       />
-
-//       <div className="flex-1 flex items-center justify-center w-full px-4">
-    
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Home;
 
 import React from "react";
 import SearchCard from "../components/SearchCard";
@@ -42,11 +13,7 @@ const Home = ({ onLoginSuccess, adminData, onLogout, setAdminData }) => {
       {/* Navbar */}
       <Navbar
         onGetStarted={() => navigate("/admin-signup")}
-        // Uncomment if needed
-        // adminData={adminData}
-        // onLogout={onLogout}
-        // setAdminData={setAdminData}
-        // onLoginSuccess={onLoginSuccess}
+       
       />
 
       {/* Centered Content */}

@@ -9,8 +9,8 @@ import { jwtDecode } from "jwt-decode";
 // import profilePlaceholder from "../../Assets/Images/profile.jpg";
 
 // API Base URL
-const API_BASE_URL = "http://localhost:5000"; // Change to your backend URL
-const BASE_URL = "http://localhost:5000"; // Add BASE_URL for the new logout function
+const API_BASE_URL = "https://vendor1.onrender.com"; // Change to your backend URL
+const BASE_URL = "https://vendor1.onrender.com"; // Add BASE_URL for the new logout function
 
 // Token management functions
 const getToken = () => {
