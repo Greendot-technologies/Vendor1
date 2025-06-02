@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controller/productController');
-const { verifyToken } = require("../middleware/authMiddleware");
+const { verifyToken } = require("../middleware/authmiddleware");
 const upload = require('../middleware/upload');
 // const auth = require('../middleware/auth'); // assuming you have auth middleware
 

@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controller/subCategoryController');
-const { verifyToken, authorizeRoles } = require("../middleware/authMiddleware");
+const { verifyToken, authorizeRoles } = require("../middleware/authmiddleware");
 // const { isVendor, isAdmin } = require('../middlewares/auth');
 
 router.post('/request',verifyToken,controller.requestSubCategory);
