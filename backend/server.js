@@ -20,6 +20,7 @@ app.use(
       const allowedOrigins = [
         'https://vendor-project.netlify.app',
         'http://localhost:3000',
+        'http://localhost:5173',
       ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
