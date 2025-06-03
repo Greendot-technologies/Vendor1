@@ -13,7 +13,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'https://vendor-project.netlify.app',
   credentials: true, // if you want to allow cookies/auth headers
 }));
 app.use(express.json());
