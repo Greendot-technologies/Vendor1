@@ -31,6 +31,9 @@ router.delete('/:id', verifyToken,productController.deleteProduct);
 // Get products with optional category and subcategory filters
 router.get('/', productController.getProducts);
 
+// Route: GET /api/products/grouped-by-category
+router.get('/grouped-by-category', productController.getProductsGroupedByCategory);
+
 // Get single product by id
 // router.get('/:id', productController.getProductById);
 

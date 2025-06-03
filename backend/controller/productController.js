@@ -1,84 +1,7 @@
 
 const pool = require('../config/db');
 
-// // Example: POST /api/products
-// exports.addProduct = async (req, res) => {
-//   try {
-//     const {
-//       category_id,
-//       sub_category_id,
-//       name_en,
-//       name_hi,
-//       name_mr,
-//       description,
-//       technical_name,
-//       brand,
-//       manufacturer,
-//       mrp,
-//       selling_price,
-//       pack_size,
-//       pack_type,
-//       unit_per_pack,
-//       sku,
-//       stock_quantity,
-//       minimum_order_quantity,
-//       recommended_crops,
-//       primary_image_url,
-//       images,
-//       video_url,
-//       status,
-//       is_prescription_required,
-//       is_banned
-//     } = req.body;
 
-//     const { id: userId, role } = req.user;
-
-//     if (!['vendor', 'company'].includes(role)) {
-//       return res.status(403).json({ message: 'Only vendor or company can add products' });
-//     }
-
-//     const result = await pool.query(
-//       `INSERT INTO products (
-//         vendor_id, category_id, sub_category_id,
-//         name_en, name_hi, name_mr,
-//         description, technical_name, brand, manufacturer,
-//         mrp, selling_price,
-//         pack_size, pack_type, unit_per_pack,
-//         sku, stock_quantity, minimum_order_quantity,
-//         recommended_crops, primary_image_url, images, video_url,
-//         status, is_prescription_required, is_banned
-//       ) VALUES (
-//         $1, $2, $3,
-//         $4, $5, $6,
-//         $7, $8, $9, $10,
-//         $11, $12,
-//         $13, $14, $15,
-//         $16, $17, $18,
-//         $19, $20, $21, $22,
-//         $23, $24, $25
-//       ) RETURNING *`,
-//       [
-//         userId, category_id, sub_category_id,
-//         name_en, name_hi, name_mr,
-//         description, technical_name, brand, manufacturer,
-//         mrp, selling_price,
-//         pack_size, pack_type, unit_per_pack,
-//         sku, stock_quantity, minimum_order_quantity,
-//         recommended_crops, primary_image_url, images, video_url,
-//         status, is_prescription_required, is_banned
-//       ]
-//     );
-
-//     res.status(201).json({
-//       message: 'Product added successfully',
-//       product: result.rows[0]
-//     });
-
-//   } catch (err) {
-//     console.error('Error adding product:', err.message);
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// };
 
 exports.addProduct = async (req, res) => {
   try {
@@ -167,45 +90,6 @@ exports.addProduct = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-
-// // PUT /api/products/:id
-// exports.updateProduct = async (req, res) => {
-//   try {
-//     const { id: productId } = req.params;
-//     const { id: userId, role } = req.user;
-
-//     // Fetch the product first to verify ownership
-//     const existing = await pool.query(
-//       `SELECT * FROM products WHERE id = $1 AND vendor_id = $2`,
-//       [productId, userId]
-//     );
-
-//     if (existing.rows.length === 0) {
-//       return res.status(404).json({ message: 'Product not found or unauthorized' });
-//     }
-
-//     const fields = req.body;
-//     const keys = Object.keys(fields);
-//     const values = Object.values(fields);
-
-//     // Dynamic SET clause
-//     const setClause = keys.map((key, idx) => `${key} = $${idx + 1}`).join(', ');
-
-//     const query = `UPDATE products SET ${setClause}, updated_at = NOW() WHERE id = $${keys.length + 1} RETURNING *`;
-
-//     const updated = await pool.query(query, [...values, productId]);
-
-//     res.json({
-//       message: 'Product updated successfully',
-//       product: updated.rows[0]
-//     });
-
-//   } catch (err) {
-//     console.error('Update error:', err.message);
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// };
 
 
 
@@ -357,3 +241,47 @@ exports.updateProduct = async (req, res) => {
 
 
 
+
+const getProductsGroupedByCategory = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        p.*,
+        c.id AS category_id,
+        c.name_en AS category_name,
+        sc.id AS sub_category_id,
+        sc.name_en AS sub_category_name
+      FROM 
+        products p
+      JOIN 
+        categories c ON p.category_id = c.id
+      LEFT JOIN 
+        sub_categories sc ON p.sub_category_id = sc.id
+      WHERE 
+        p.status = 'active'
+        AND (
+          p.sub_category_id IS NULL
+          OR sc.category_id = p.category_id
+        )
+      ORDER BY 
+        c.sort_order, sc.sort_order, p.created_at DESC;
+    `);
+
+    // Group products by category_name
+    const grouped = {};
+    result.rows.forEach(product => {
+      const category = product.category_name;
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push(product);
+    });
+
+    res.json(grouped);
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+module.exports = {
+  getProductsGroupedByCategory,
+};
