@@ -242,7 +242,7 @@ exports.updateProduct = async (req, res) => {
 
 
 
-const getProductsGroupedByCategory = async (req, res) => {
+exports.getProductsGroupedByCategory = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -280,8 +280,4 @@ const getProductsGroupedByCategory = async (req, res) => {
     console.error('Error fetching products:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
-};
-
-module.exports = {
-  getProductsGroupedByCategory,
 };
