@@ -40,6 +40,8 @@ const subCategoryRoutes = require("./routes/subCategoryRoutes");
 const productRoutes = require('./routes/productRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use("/api/user", authRoutes);
@@ -48,8 +50,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/category', categoryRoutes);
 
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
 
 // Fallback route for undefined paths
 app.use((req, res) => {
