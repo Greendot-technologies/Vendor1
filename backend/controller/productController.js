@@ -1,10 +1,6 @@
 
 const pool = require('../config/db');
 
-
-
-const pool = require('../db'); // adjust path as needed
-
 exports.addProduct = async (req, res) => {
   try {
     const {
