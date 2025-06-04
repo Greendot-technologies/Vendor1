@@ -33,7 +33,7 @@ router.get('/', productController.getProducts);
 router.get('/grouped-by-category', productController.getProductsGroupedByCategory);
 
 // Get a single product by ID (optional but useful)
-router.get('/:id', productController.getProductById);  // Uncomment if needed
+// router.get('/:id', productController.getProductById);  // Uncomment if needed
 
 // ----------------------------------------------------------
 
