@@ -6,11 +6,13 @@ const pool = require('../config/db');
 exports.addProduct = async (req, res) => {
   try {
     const {
-      category_id, sub_category_id, name_en, name_hi, name_mr,
+      category_id, sub_category_id,
+      name_en, name_hi, name_mr,
       description, technical_name, brand, manufacturer,
       mrp, selling_price, pack_size, pack_type, unit_per_pack,
-      sku, stock_quantity, minimum_order_quantity, recommended_crops,
-      primary_image_url, video_url, status, is_prescription_required, is_banned
+      sku, stock_quantity, minimum_order_quantity,
+      recommended_crops, primary_image_url, video_url,
+      status, is_prescription_required, is_banned
     } = req.body;
 
     const { id: userId, role } = req.user;
@@ -19,20 +21,21 @@ exports.addProduct = async (req, res) => {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
-    // Helper function to safely parse numbers
-    const toInt = (val) => {
-      const num = parseInt(val);
-      return isNaN(num) ? null : num;
-    };
+    // Helpers
+    const toInt = (val) => isNaN(parseInt(val)) ? null : parseInt(val);
+    const toFloat = (val) => isNaN(parseFloat(val)) ? null : parseFloat(val);
+    const toBool = (val) => val === 'true' || val === true;
 
-    const toFloat = (val) => {
-      const num = parseFloat(val);
-      return isNaN(num) ? null : num;
-    };
+    // Parse recommended crop IDs
+    const crops = (recommended_crops || '')
+      .split(',')
+      .map(c => toInt(c))
+      .filter(c => c !== null);
 
-    // Image paths (from multer)
-    const imagePaths = req.files?.map(file => `/uploads/${file.filename}`) || [];
+    // Parse image paths from uploaded files
+    const imagePaths = (req.files || []).map(file => `/uploads/${file.filename}`);
 
+    // Insert into DB
     const result = await pool.query(
       `INSERT INTO products (
         vendor_id, category_id, sub_category_id,
@@ -70,13 +73,13 @@ exports.addProduct = async (req, res) => {
         sku || null,
         toInt(stock_quantity),
         toInt(minimum_order_quantity),
-        recommended_crops ? recommended_crops.split(',').map(cropId => toInt(cropId)).filter(Boolean) : [],
+        JSON.stringify(crops),
         primary_image_url || null,
         JSON.stringify(imagePaths),
         video_url || null,
         status || 'active',
-        is_prescription_required === 'true',
-        is_banned === 'true'
+        toBool(is_prescription_required),
+        toBool(is_banned)
       ]
     );
 
