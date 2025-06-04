@@ -3,6 +3,8 @@ const pool = require('../config/db');
 
 
 
+const pool = require('../db'); // adjust path as needed
+
 exports.addProduct = async (req, res) => {
   try {
     const {
@@ -26,7 +28,7 @@ exports.addProduct = async (req, res) => {
     const toFloat = (val) => isNaN(parseFloat(val)) ? null : parseFloat(val);
     const toBool = (val) => val === 'true' || val === true;
 
-    // Parse recommended crop IDs
+    // Convert comma-separated crop IDs (string) into a PostgreSQL array string
     const crops = (recommended_crops || '')
       .split(',')
       .map(c => toInt(c))
@@ -73,7 +75,7 @@ exports.addProduct = async (req, res) => {
         sku || null,
         toInt(stock_quantity),
         toInt(minimum_order_quantity),
-        JSON.stringify(crops),
+        crops.length ? `{${crops.join(',')}}` : null,  // PostgreSQL array syntax
         primary_image_url || null,
         JSON.stringify(imagePaths),
         video_url || null,
