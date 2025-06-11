@@ -1,284 +1,215 @@
 
-const pool = require('../config/db');
+// agri_market_backend/controllers/productController.js
+const pool = require("../config/db");
+const fs = require("fs");
+const path = require("path");
 
+//---------------------- Api for Add Products -----------------------------------------------------------------
 exports.addProduct = async (req, res) => {
   try {
     const {
-      category_id, sub_category_id,
-      name_en, name_hi, name_mr,
-      description, technical_name, brand, manufacturer,
-      mrp, selling_price, pack_size, pack_type, unit_per_pack,
-      sku, stock_quantity, minimum_order_quantity,
-      recommended_crops, primary_image_url, video_url,
-      status, is_prescription_required, is_banned
+      category_id,
+      subcategory_id,
+      name,
+      description,
+      brand,
+      price,
+      stock_quantity,
+      unit,
+      vendor_id,
+      discount_percentage,
     } = req.body;
 
-    const { id: userId, role } = req.user;
+    const discounted_price = discount_percentage
+      ? (price - price * (discount_percentage / 100)).toFixed(2)
+      : price;
 
-    if (!['vendor', 'company'].includes(role)) {
-      return res.status(403).json({ message: 'Not allowed' });
-    }
-
-    // Helpers
-    const toInt = (val) => isNaN(parseInt(val)) ? null : parseInt(val);
-    const toFloat = (val) => isNaN(parseFloat(val)) ? null : parseFloat(val);
-    const toBool = (val) => val === 'true' || val === true;
-
-    // Convert comma-separated crop IDs (string) into a PostgreSQL array string
-    const crops = (recommended_crops || '')
-      .split(',')
-      .map(c => toInt(c))
-      .filter(c => c !== null);
-
-    // Parse image paths from uploaded files
-    const imagePaths = (req.files || []).map(file => `/uploads/${file.filename}`);
-
-    // Insert into DB
     const result = await pool.query(
-      `INSERT INTO products (
-        vendor_id, category_id, sub_category_id,
-        name_en, name_hi, name_mr, description, technical_name,
-        brand, manufacturer, mrp, selling_price,
-        pack_size, pack_type, unit_per_pack, sku,
-        stock_quantity, minimum_order_quantity,
-        recommended_crops, primary_image_url, images, video_url,
-        status, is_prescription_required, is_banned
-      ) VALUES (
-        $1, $2, $3,
-        $4, $5, $6, $7, $8,
-        $9, $10, $11, $12,
-        $13, $14, $15, $16,
-        $17, $18,
-        $19, $20, $21, $22,
-        $23, $24, $25
-      ) RETURNING *`,
+      `INSERT INTO products 
+       (category_id, subcategory_id, name, description, brand, price, stock_quantity, unit, vendor_id, discount_percentage, discounted_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
       [
-        userId,
-        toInt(category_id),
-        toInt(sub_category_id),
-        name_en,
-        name_hi || null,
-        name_mr || null,
-        description || null,
-        technical_name || null,
-        brand || null,
-        manufacturer || null,
-        toFloat(mrp),
-        toFloat(selling_price),
-        pack_size || null,
-        pack_type || null,
-        toInt(unit_per_pack),
-        sku || null,
-        toInt(stock_quantity),
-        toInt(minimum_order_quantity),
-        crops.length ? `{${crops.join(',')}}` : null,  // PostgreSQL array syntax
-        primary_image_url || null,
-        JSON.stringify(imagePaths),
-        video_url || null,
-        status || 'active',
-        toBool(is_prescription_required),
-        toBool(is_banned)
+        category_id,
+        subcategory_id,
+        name,
+        description,
+        brand,
+        price,
+        stock_quantity,
+        unit,
+        vendor_id,
+        discount_percentage,
+        discounted_price,
       ]
     );
 
-    res.status(201).json({
-      message: 'Product added successfully',
-      product: result.rows[0]
-    });
+    const productId = result.rows[0].id;
 
-  } catch (err) {
-    console.error('Error adding product:', err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-
-
-// // DELETE /api/products/:id
-exports.deleteProduct = async (req, res) => {
-  try {
-    const { id: productId } = req.params;
-    const { id: userId } = req.user;
-
-    const result = await pool.query(
-      `DELETE FROM products WHERE id = $1 AND vendor_id = $2 RETURNING *`,
-      [productId, userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Product not found or unauthorized' });
-    }
-
-    res.json({ message: 'Product deleted successfully' });
-
-  } catch (err) {
-    console.error('Delete error:', err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-
-
-// // GET /api/products?category_id=&sub_category_id=
-exports.getProducts = async (req, res) => {
-  try {
-    const { category_id, sub_category_id } = req.query;
-
-    // Base query and params array
-    let query = `SELECT * FROM products WHERE 1=1`;
-    const params = [];
-    let idx = 1;
-
-    // Filter by category_id if provided
-    if (category_id) {
-      query += ` AND category_id = $${idx}`;
-      params.push(category_id);
-      idx++;
-    }
-
-    // Filter by sub_category_id if provided
-    if (sub_category_id) {
-      query += ` AND sub_category_id = $${idx}`;
-      params.push(sub_category_id);
-      idx++;
-    }
-
-    query += ` ORDER BY created_at DESC`;
-
-    const result = await pool.query(query, params);
-
-    res.json({
-      count: result.rows.length,
-      products: result.rows
-    });
-  } catch (err) {
-    console.error('Error fetching products:', err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-
-exports.updateProduct = async (req, res) => {
-  try {
-    const { id: productId } = req.params;
-    const { id: userId, role } = req.user;
-
-    // Allow only vendors or companies to update
-    if (!['vendor', 'company'].includes(role)) {
-      return res.status(403).json({ message: 'Not allowed' });
-    }
-
-    // Ensure product belongs to the current vendor
-    const existing = await pool.query(
-      `SELECT * FROM products WHERE id = $1 AND vendor_id = $2`,
-      [productId, userId]
-    );
-
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ message: 'Product not found or unauthorized' });
-    }
-
-    const fields = req.body;
-    const keys = [];
-    const values = [];
-
-    const toInt = (val) => {
-      const num = parseInt(val);
-      return isNaN(num) ? null : num;
-    };
-
-    const toFloat = (val) => {
-      const num = parseFloat(val);
-      return isNaN(num) ? null : num;
-    };
-
-    const fieldParsers = {
-      category_id: toInt,
-      sub_category_id: toInt,
-      mrp: toFloat,
-      selling_price: toFloat,
-      unit_per_pack: toInt,
-      stock_quantity: toInt,
-      minimum_order_quantity: toInt,
-      is_prescription_required: (val) => val === 'true' || val === true,
-      is_banned: (val) => val === 'true' || val === true,
-      recommended_crops: (val) => val.split(',').map(v => toInt(v)).filter(Boolean),
-    };
-
-    for (let [key, value] of Object.entries(fields)) {
-      if (fieldParsers[key]) {
-        value = fieldParsers[key](value);
-      }
-      keys.push(key);
-      values.push(value);
-    }
-
-    // Handle image upload if files exist
     if (req.files && req.files.length > 0) {
-      const imagePaths = req.files.map(file => `/uploads/${file.filename}`);
-      keys.push('images');
-      values.push(JSON.stringify(imagePaths));
+      for (let i = 0; i < req.files.length; i++) {
+        const imageUrl = `/uploads/${req.files[i].filename}`;
+        await pool.query(
+          `INSERT INTO product_images (product_id, image_url, is_primary)
+           VALUES ($1, $2, $3)`,
+          [productId, imageUrl, i === 0]
+        );
+      }
     }
 
-    if (keys.length === 0) {
-      return res.status(400).json({ message: 'No valid fields to update' });
-    }
-
-    // Generate the SET clause dynamically
-    const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
-    const query = `UPDATE products SET ${setClause}, updated_at = NOW() WHERE id = $${keys.length + 1} RETURNING *`;
-
-    const result = await pool.query(query, [...values, productId]);
-
-    res.json({
-      message: 'Product updated successfully',
-      product: result.rows[0],
-    });
-  } catch (err) {
-    console.error('Update error:', err.message);
-    res.status(500).json({ message: 'Server error' });
+    res.status(201).json({ message: "Product created", productId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error adding product" });
   }
 };
 
-
-
-
-exports.getProductsGroupedByCategory = async (req, res) => {
+//---------------------- Api for get all Products -----------------------------------------------------------------
+exports.getAllProducts = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        p.*,
-        c.id AS category_id,
-        c.name_en AS category_name,
-        sc.id AS sub_category_id,
-        sc.name_en AS sub_category_name
-      FROM 
-        products p
-      JOIN 
-        categories c ON p.category_id = c.id
-      LEFT JOIN 
-        sub_categories sc ON p.sub_category_id = sc.id
-      WHERE 
-        p.status = 'active'
-        AND (
-          p.sub_category_id IS NULL
-          OR sc.category_id = p.category_id
-        )
-      ORDER BY 
-        c.sort_order, sc.sort_order, p.created_at DESC;
+        p.id, p.name, p.description, p.brand, p.price, p.discount_percentage,
+        p.discounted_price, p.stock_quantity, p.unit, p.is_active, p.created_at,
+        json_agg(
+          json_build_object('id', pi.id, 'image_url', pi.image_url, 'is_primary', pi.is_primary)
+        ) AS images
+      FROM products p
+      LEFT JOIN product_images pi ON p.id = pi.product_id
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
     `);
 
-    // Group products by category_name
-    const grouped = {};
-    result.rows.forEach(product => {
-      const category = product.category_name;
-      if (!grouped[category]) grouped[category] = [];
-      grouped[category].push(product);
-    });
-
-    res.json(grouped);
-  } catch (err) {
-    console.error('Error fetching products:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(200).json({ products: result.rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching products" });
   }
 };
+//---------------------- Api for update Products -----------------------------------------------------------------
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      category_id,
+      subcategory_id,
+      name,
+      description,
+      brand,
+      price,
+      stock_quantity,
+      unit,
+      vendor_id,
+      discount_percentage,
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "Product ID is required" });
+    }
+
+    // Collect only the fields that are provided
+    const fieldsToUpdate = {};
+    if (category_id) fieldsToUpdate.category_id = category_id;
+    if (subcategory_id) fieldsToUpdate.subcategory_id = subcategory_id;
+    if (name) fieldsToUpdate.name = name;
+    if (description) fieldsToUpdate.description = description;
+    if (brand) fieldsToUpdate.brand = brand;
+    if (price) fieldsToUpdate.price = price;
+    if (stock_quantity) fieldsToUpdate.stock_quantity = stock_quantity;
+    if (unit) fieldsToUpdate.unit = unit;
+    if (vendor_id) fieldsToUpdate.vendor_id = vendor_id;
+    if (discount_percentage) fieldsToUpdate.discount_percentage = discount_percentage;
+
+    // Calculate discounted_price if price and discount_percentage both are given
+    if (price && discount_percentage) {
+      const discounted_price = (price - price * (discount_percentage / 100)).toFixed(2);
+      fieldsToUpdate.discounted_price = discounted_price;
+    }
+
+    if (Object.keys(fieldsToUpdate).length === 0 && !(req.files && req.files.length > 0)) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
+
+    // Build dynamic update query
+    let query = "UPDATE products SET";
+    const values = [];
+    let index = 1;
+
+    for (const [key, value] of Object.entries(fieldsToUpdate)) {
+      query += ` ${key} = $${index},`;
+      values.push(value);
+      index++;
+    }
+
+    query = query.slice(0, -1); // remove trailing comma
+    query += ` WHERE id = $${index} RETURNING id`;
+    values.push(id);
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Handle new image uploads
+    if (req.files && req.files.length > 0) {
+      // Optional: Delete old images first
+      await pool.query(`DELETE FROM product_images WHERE product_id = $1`, [id]);
+
+      for (let i = 0; i < req.files.length; i++) {
+        const imageUrl = `/uploads/${req.files[i].filename}`;
+        await pool.query(
+          `INSERT INTO product_images (product_id, image_url, is_primary)
+           VALUES ($1, $2, $3)`,
+          [id, imageUrl, i === 0]
+        );
+      }
+    }
+
+    res.status(200).json({ message: "Product updated", productId: id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error updating product" });
+  }
+};
+//---------------------- Api for delete Products -----------------------------------------------------------------
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const images = await pool.query(
+      `SELECT image_url FROM product_images WHERE product_id = $1`,
+      [id]
+    );
+    images.rows.forEach((img) => {
+      const imgPath = path.join(__dirname, "..", img.image_url);
+      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    });
+
+    await pool.query(`DELETE FROM products WHERE id = $1`, [id]);
+
+    res.json({ message: "Product deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error deleting product" });
+  }
+};
+//---------------------- Api for get product images only -----------------------------------------------------------------
+exports.getProductImages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT image_url FROM product_images WHERE product_id = $1`,
+      [id]
+    );
+    const images = result.rows.map((img) => ({
+      url: `${req.protocol}://${req.get("host")}${img.image_url}`,
+    }));
+    res.json(images);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching product images" });
+  }
+};
+
+
+//------------------------ End of product controller ----------------------------------------------------
