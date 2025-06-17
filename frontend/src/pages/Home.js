@@ -1,7 +1,7 @@
 
 
 import React from "react";
-import SearchCard from "../components/SearchCard";
+
 import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
 
@@ -13,7 +13,11 @@ const Home = ({ onLoginSuccess, adminData, onLogout, setAdminData }) => {
       {/* Navbar */}
       <Navbar
         onGetStarted={() => navigate("/admin-signup")}
-       
+        // Uncomment if needed
+        // adminData={adminData}
+        // onLogout={onLogout}
+        // setAdminData={setAdminData}
+        // onLoginSuccess={onLoginSuccess}
       />
 
       {/* Centered Content */}
