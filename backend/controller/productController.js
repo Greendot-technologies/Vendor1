@@ -214,26 +214,51 @@ exports.getProductImages = async (req, res) => {
 
 
 // GET /api/products/vendor/:vendorId
-exports.getProductsByVendor = async (req, res) => {
-  const vendorId = parseInt(req.params.vendorId);
+// exports.getProductsByVendor = async (req, res) => {
+//   const vendorId = parseInt(req.params.vendorId);
 
-  if (isNaN(vendorId)) {
-    return res.status(400).json({ error: 'Invalid vendor ID' });
-  }
+//   if (isNaN(vendorId)) {
+//     return res.status(400).json({ error: 'Invalid vendor ID' });
+//   }
+
+//   try {
+//     const result = await pool.query(
+//       `SELECT p.*, 
+//               COALESCE(json_agg(
+//                 json_build_object(
+//                   'id', i.id,
+//                   'image_url', i.image_url,
+//                   'is_primary', i.is_primary
+//                 )
+//               ) FILTER (WHERE i.id IS NOT NULL), '[]') AS images
+//        FROM products p
+//        LEFT JOIN product_images i ON p.id = i.product_id
+//        WHERE p.vendor_id = $1 AND p.is_active = true
+//        GROUP BY p.id
+//        ORDER BY p.created_at DESC`,
+//       [vendorId]
+//     );
+
+//     res.json({ products: result.rows });
+//   } catch (err) {
+//     console.error('Error fetching vendor products:', err);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+exports.getMyProducts = async (req, res) => {
+  const vendorId = req.user.id; // Extracted from JWT
 
   try {
     const result = await pool.query(
       `SELECT p.*, 
-              COALESCE(json_agg(
-                json_build_object(
-                  'id', i.id,
-                  'image_url', i.image_url,
-                  'is_primary', i.is_primary
-                )
-              ) FILTER (WHERE i.id IS NOT NULL), '[]') AS images
+              json_agg(json_build_object(
+                'id', pi.id,
+                'image_url', pi.image_url,
+                'is_primary', pi.is_primary
+              )) AS images
        FROM products p
-       LEFT JOIN product_images i ON p.id = i.product_id
-       WHERE p.vendor_id = $1 AND p.is_active = true
+       LEFT JOIN product_images pi ON p.id = pi.product_id
+       WHERE p.vendor_id = $1
        GROUP BY p.id
        ORDER BY p.created_at DESC`,
       [vendorId]
@@ -241,11 +266,10 @@ exports.getProductsByVendor = async (req, res) => {
 
     res.json({ products: result.rows });
   } catch (err) {
-    console.error('Error fetching vendor products:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching products for logged-in vendor:", err.message);
+    res.status(500).json({ error: "Failed to fetch products" });
   }
 };
-
 
 
 

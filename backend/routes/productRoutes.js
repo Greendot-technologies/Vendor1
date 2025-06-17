@@ -28,6 +28,8 @@ router.delete("/delete/:id",verifyToken, productController.deleteProduct);
 // get product images route //
 router.get("/images/:id", productController.getProductImages);
 
-router.get('/vendor/:vendorId',verifyToken,productController.getProductsByVendor);
+// routes/product.js
+router.get('/vendor/products', verifyToken, authorizeRoles("vendor","company"), productController.getMyProducts);
+
 
 module.exports = router;
