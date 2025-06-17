@@ -212,4 +212,41 @@ exports.getProductImages = async (req, res) => {
 };
 
 
+
+// GET /api/products/vendor/:vendorId
+exports.getProductsByVendor = async (req, res) => {
+  const vendorId = parseInt(req.params.vendorId);
+
+  if (isNaN(vendorId)) {
+    return res.status(400).json({ error: 'Invalid vendor ID' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT p.*, 
+              COALESCE(json_agg(
+                json_build_object(
+                  'id', i.id,
+                  'image_url', i.image_url,
+                  'is_primary', i.is_primary
+                )
+              ) FILTER (WHERE i.id IS NOT NULL), '[]') AS images
+       FROM products p
+       LEFT JOIN product_images i ON p.id = i.product_id
+       WHERE p.vendor_id = $1 AND p.is_active = true
+       GROUP BY p.id
+       ORDER BY p.created_at DESC`,
+      [vendorId]
+    );
+
+    res.json({ products: result.rows });
+  } catch (err) {
+    console.error('Error fetching vendor products:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+
 //------------------------ End of product controller ----------------------------------------------------
