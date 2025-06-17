@@ -28,6 +28,6 @@ router.delete("/delete/:id",verifyToken, productController.deleteProduct);
 // get product images route //
 router.get("/images/:id", productController.getProductImages);
 
-router.get('/vendor/:vendorId',productController.getProductsByVendor);
+router.get('/vendor/:vendorId',verifyToken,productController.getProductsByVendor);
 
 module.exports = router;
