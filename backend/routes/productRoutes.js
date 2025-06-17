@@ -31,5 +31,7 @@ router.get("/images/:id", productController.getProductImages);
 // routes/product.js
 router.get('/vendor/products', verifyToken, authorizeRoles("vendor","company"), productController.getMyProducts);
 
+// GET /api/vendor/profile
+router.get('/profile', verifyToken, authorizeRoles("vendor","company"), vendorController.getProfile);
 
 module.exports = router;

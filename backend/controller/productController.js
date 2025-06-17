@@ -273,4 +273,48 @@ exports.getMyProducts = async (req, res) => {
 
 
 
+
+// Get profile info for logged-in vendor
+exports.getProfile = async (req, res) => {
+  const vendorId = req.user.id;
+  try {
+    const result = await pool.query(
+      'SELECT id, name, email FROM vendor_profiles WHERE id = $1',
+      [vendorId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    res.json({ vendor: result.rows[0] });
+  } catch (err) {
+    console.error('Error fetching vendor profile:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get products for logged-in vendor
+exports.getMyProducts = async (req, res) => {
+  const vendorId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT p.*, json_agg(json_build_object(
+          'id', pi.id,
+          'image_url', pi.image_url,
+          'is_primary', pi.is_primary
+        )) AS images
+       FROM products p
+       LEFT JOIN product_images pi ON p.id = pi.product_id
+       WHERE p.vendor_id = $1
+       GROUP BY p.id
+       ORDER BY p.created_at DESC`,
+      [vendorId]
+    );
+
+    res.json({ products: result.rows });
+  } catch (err) {
+    console.error("Error fetching vendor products:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 //------------------------ End of product controller ----------------------------------------------------
