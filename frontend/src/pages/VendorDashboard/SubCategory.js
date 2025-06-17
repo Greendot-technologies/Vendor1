@@ -1,9 +1,11 @@
 
 
+
 import React, { useState } from "react";
 import axios from "axios";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import api from "../../services/productApi"; // Adjust the import path as needed
 
 const SubCategory = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -26,8 +28,7 @@ const SubCategory = () => {
     setMessage("");
 
     try {
-      const response = await axios.post(
-        "https://vendor1.onrender.com/api/user/request",
+      const response = await api.post("/user/request",
         formData,
         {
           headers: {

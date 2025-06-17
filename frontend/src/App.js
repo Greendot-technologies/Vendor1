@@ -1,5 +1,6 @@
 
 
+
 import React, { useState } from "react";
 import {
   BrowserRouter as Router,
@@ -7,6 +8,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+
 import Home from "./pages/Home";
 import { logoutVendor } from "./services/apiService";
 // import FlightBooking from "./components/FlightBooking";
@@ -17,10 +19,11 @@ import { AuthProvider } from "./context/AuthContext";
 // import Accounts from "./pages/Accounts";
 // import Sales from "./pages/Sales";
 // import Profile from "./pages/Profile";
-import CompanyDashboard from "./pages/CompanyDashboard/CompanyDashboard";
+// import CompanyDashboard from "./pages/CompanyDashboard/CompanyDashboard";
 import VendorDashboard from "./pages/VendorDashboard/VendorDashboard";
 import ProductManagement from "./pages/VendorDashboard/ProductManagement";
 import SubCategory from "./pages/VendorDashboard/SubCategory";
+import ShopManagement from './pages/VendorDashboard/ShopManagement';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -57,17 +60,13 @@ const App = () => {
               />
             }
           />
-          {/* <Route path="/flight-results" element={<FlightResult />} /> */}
-          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
-          <Route path="/CompanyDashboard" element={<CompanyDashboard />} />
+       
           <Route path="/VendorDashboard" element={<VendorDashboard />} />
-          {/* <Route path="/UserManagement" element={<UserManagement />} /> */}
+      
           <Route path="/SubCategory" element={<SubCategory/>} />
           <Route path="/ProductManagement" element={<ProductManagement />} />
-          {/* <Route path="/my-bookings" element={<MyBookings />} />
-          <Route path="/accounts" element={<Accounts />} />
-          <Route path="/sales" element={<Sales />} /> */}
-          {/* <Route path="/my-profile" element={<Profile />} /> */}
+          <Route path="/ShopManagement" element={<ShopManagement />} />
+          
           
           {/* Optional fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

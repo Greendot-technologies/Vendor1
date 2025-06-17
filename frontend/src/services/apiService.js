@@ -1,5 +1,5 @@
 
-const BASE_URL = "https://vendor1.onrender.com/api";
+const BASE_URL = "http://localhost:5000/api";
 
 // Helper function to get the token from localStorage
 const getToken = () => {

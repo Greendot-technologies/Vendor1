@@ -368,3 +368,36 @@ Response:
 
 
 
+<<<<<<< HEAD
+=======
+drutujagmail.com
+Rutuja@123
+
+
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    category_id INT REFERENCES categories(id) ON DELETE SET NULL,
+    subcategory_id INT REFERENCES sub_categories(id) ON DELETE SET NULL,
+    vendor_id INT REFERENCES vendor_profiles(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    brand VARCHAR(100),
+    price DECIMAL(10, 2) NOT NULL,
+    discount_percentage INT,
+    discounted_price DECIMAL(10, 2),
+    stock_quantity INT NOT NULL DEFAULT 0,
+    unit VARCHAR(20),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE product_images (
+    id SERIAL PRIMARY KEY,
+    product_id INT REFERENCES products(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE
+);
+*/
+
+    /api/products/
+>>>>>>> 2249aac1d74f4112c56dbcf87711969ecdb2f9c6

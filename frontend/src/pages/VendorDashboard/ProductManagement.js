@@ -1,82 +1,165 @@
 
-
 import React, { useEffect, useState } from "react";
-import { Sidebar } from "./Sidebar";
-import { Header } from "./Header";
 import axios from "axios";
-import { Pencil, Trash2 } from "lucide-react";
+import { Sidebar } from "../../pages/VendorDashboard/Sidebar";
+import { Header } from "../../pages/VendorDashboard/Header";
+import api from "../../services/productApi";
 
 const ProductManagement = () => {
-  const [products, setProducts] = useState([]);
-  const [form, setForm] = useState(initialForm());
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [productsPerPage] = useState(5);
+  const [formVisible, setFormVisible] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [images, setImages] = useState([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState([]);
+
+  // Enhanced category/subcategory states
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [filteredSubCategories, setFilteredSubCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [subCategoriesLoading, setSubCategoriesLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function initialForm() {
-    return {
-      name_en: "",
-      name_hi: "",
-      category_id: "",
-      sub_category_id: "",
-      mrp: "",
-      selling_price: "",
-      pack_size: "",
-      stock_quantity: "",
-      primary_image_url: "",
-      images: [],
-      active: true,
-    };
-  }
+  // Vendor information state
+  const [vendorInfo, setVendorInfo] = useState(null);
 
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    brand: "",
+    price: "",
+    discount_percentage: "",
+    stock_quantity: "",
+    unit: "",
+    category_id: "",
+    subcategory_id: "",
+  });
+
+  // Helper function to get auth headers
   const getAuthHeaders = () => {
     const token = localStorage.getItem("vendor_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    if (!token) {
+      console.error("No vendor token found");
+      return null;
+    }
+    return { Authorization: `Bearer ${token}` };
   };
 
-  const fetchProducts = async () => {
+  // Check if user is authenticated
+  const isAuthenticated = () => {
+    const token = localStorage.getItem("vendor_token");
+    return !!token;
+  };
+
+  // Get vendor ID from token or localStorage
+  const getVendorId = () => {
+    // Method 1: Try to get from localStorage directly
+    const vendorId = localStorage.getItem("vendor_id");
+    if (vendorId) {
+      return vendorId;
+    }
+
+    // Method 2: Try to decode from token
     try {
-      setLoading(true);
-      const res = await axios.get("https://vendor1.onrender.com/api/products", {
-        headers: getAuthHeaders(),
-      });
-      setProducts(res.data.products || []);
-    } catch (err) {
-      console.error("Error fetching products:", err.response || err.message);
-      if (err.response?.status === 401) {
-        alert("Unauthorized! Please login again.");
+      const token = localStorage.getItem("vendor_token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.vendor_id || payload.id || payload.userId;
       }
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Error decoding token:", error);
+    }
+
+    // Method 3: From vendorInfo state
+    return vendorInfo?.id || null;
+  };
+
+  // Fetch vendor information
+  const fetchVendorInfo = async () => {
+    try {
+      const authHeaders = getAuthHeaders();
+      if (!authHeaders) return;
+
+      const response = await api.get("/products/vendor/profile", { 
+        headers: authHeaders 
+      });
+
+      if (response.data) {
+        setVendorInfo(response.data.vendor || response.data);
+        // Store vendor ID in localStorage for future use
+        const vendorId = response.data.vendor?.id || response.data.id;
+        if (vendorId) {
+          localStorage.setItem("vendor_id", vendorId.toString());
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching vendor info:", error);
+      if (error.response?.status === 401) {
+        alert("Session expired. Please login again.");
+      }
     }
   };
 
+  // Fetch products for the authenticated vendor
+  const fetchProducts = async () => {
+    try {
+      const authHeaders = getAuthHeaders();
+      if (!authHeaders) return;
+
+      const response = await api.get('/products/vendor/products', { 
+        headers: authHeaders 
+      });
+      
+      const productsData = response.data.products || response.data || [];
+      setProducts(Array.isArray(productsData) ? productsData : []);
+    } catch (error) {
+      console.error("Failed to fetch products", error);
+      if (error.response?.status === 401) {
+        alert("Session expired. Please login again.");
+      }
+    }
+  };
+
+  // Enhanced category fetching with proper auth
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const res = await axios.get("https://vendor1.onrender.com/api/category/categories", {
-        headers: getAuthHeaders(),
+      const authHeaders = getAuthHeaders();
+      if (!authHeaders) return;
+
+      const res = await api.get("/category/categories", {
+        headers: authHeaders,
       });
       console.log("Categories fetched from database:", res.data);
-      
-      // Handle different possible response structures
-      const categoriesData = res.data.categories || res.data.data || res.data || [];
+
+      const categoriesData =
+        res.data.categories || res.data.data || res.data || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
-      
     } catch (err) {
       console.error("Error fetching categories:", err.response || err.message);
-      // Fallback to alternative endpoint if first one fails
+      
+      if (err.response?.status === 401) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+
+      // Fallback attempt with direct axios call
       try {
-        const fallbackRes = await axios.get("https://vendor1.onrender.com/api/category/categories", {
-          headers: getAuthHeaders(),
-        });
-        const fallbackData = fallbackRes.data.categories || fallbackRes.data || [];
+        const authHeaders = getAuthHeaders();
+        if (!authHeaders) return;
+
+        const fallbackRes = await api.get("/category/categories",
+          {
+            headers: authHeaders,
+          }
+        );
+        const fallbackData =
+          fallbackRes.data.categories || fallbackRes.data || [];
         setCategories(Array.isArray(fallbackData) ? fallbackData : []);
       } catch (fallbackErr) {
         console.error("Error with fallback categories endpoint:", fallbackErr);
@@ -87,45 +170,63 @@ const ProductManagement = () => {
     }
   };
 
+  // Enhanced subcategory fetching with proper auth
   const fetchSubCategories = async (categoryId = null) => {
     try {
       setSubCategoriesLoading(true);
-      
-      // If categoryId is provided, fetch subcategories for that specific category
-      const endpoint = categoryId 
-        ? `https://vendor1.onrender.com/api/categories/${categoryId}/subcategories`
-        : "https://vendor1.onrender.com/api/user/approved";
-      
-      const res = await axios.get(endpoint, {
-        headers: getAuthHeaders(),
-      });
-      
-      console.log("Subcategories fetched:", res.data);
-      
-      // Handle different possible response structures
-      const subCategoriesData = res.data.subcategories || res.data.data || res.data || [];
-      const subCategoriesArray = Array.isArray(subCategoriesData) ? subCategoriesData : [];
-      
+      const authHeaders = getAuthHeaders();
+      if (!authHeaders) return;
+
+      let endpoint;
       if (categoryId) {
-        // If fetching for a specific category, update filtered subcategories
+        endpoint = `/categories/${categoryId}/subcategories`;
+      } else {
+        endpoint = "/user/approved";
+      }
+
+      const res = await api.get(endpoint, {
+        headers: authHeaders,
+      });
+
+      console.log("Subcategories fetched:", res.data);
+
+      const subCategoriesData =
+        res.data.subcategories || res.data.data || res.data || [];
+      const subCategoriesArray = Array.isArray(subCategoriesData)
+        ? subCategoriesData
+        : [];
+
+      if (categoryId) {
         setFilteredSubCategories(subCategoriesArray);
       } else {
-        // If fetching all subcategories, update the main subcategories state
         setSubCategories(subCategoriesArray);
       }
-      
     } catch (err) {
-      console.error("Error fetching subcategories:", err.response || err.message);
-      
-      // Fallback: try to get all subcategories and filter client-side
+      console.error(
+        "Error fetching subcategories:",
+        err.response || err.message
+      );
+
+      if (err.response?.status === 401) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+
+      // Fallback logic with direct axios calls
       if (categoryId) {
         try {
-          const fallbackRes = await axios.get("https://vendor1.onrender.com/api/user/approved", {
-            headers: getAuthHeaders(),
-          });
-          const allSubCategories = fallbackRes.data.subcategories || fallbackRes.data || [];
+          const authHeaders = getAuthHeaders();
+          if (!authHeaders) return;
+
+          const fallbackRes = await api.get("/user/approved",
+            {
+              headers: authHeaders,
+            }
+          );
+          const allSubCategories =
+            fallbackRes.data.subcategories || fallbackRes.data || [];
           const filtered = allSubCategories.filter(
-            sub => String(sub.category_id) === String(categoryId)
+            (sub) => String(sub.category_id) === String(categoryId)
           );
           setFilteredSubCategories(filtered);
         } catch (fallbackErr) {
@@ -133,11 +234,15 @@ const ProductManagement = () => {
           setFilteredSubCategories([]);
         }
       } else {
-        // Try alternative endpoint for all subcategories
         try {
-          const altRes = await axios.get("https://vendor1.onrender.com/api/user/approved", {
-            headers: getAuthHeaders(),
-          });
+          const authHeaders = getAuthHeaders();
+          if (!authHeaders) return;
+
+          const altRes = await api.get("/user/approved",
+            {
+              headers: authHeaders,
+            }
+          );
           const altData = altRes.data || [];
           setSubCategories(Array.isArray(altData) ? altData : []);
         } catch (altErr) {
@@ -150,615 +255,769 @@ const ProductManagement = () => {
     }
   };
 
+  // Initial data loading
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      alert("Please login to access this page");
+      return;
+    }
+    
+    fetchVendorInfo();
+    fetchProducts();
+    fetchCategories();
+    fetchSubCategories();
+  }, []);
+
+  // Filter products based on search term
+  useEffect(() => {
+    const filtered = products.filter((p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, products]);
+
+  // Handle form input changes
   const handleInput = (e) => {
     const { name, value, files, type } = e.target;
 
-    if (type === "file") {
-      setForm((prev) => ({ ...prev, [name]: Array.from(files) }));
+    if (type === "file" && files) {
+      const selectedFiles = Array.from(files);
+
+      // Total images after addition
+      const totalImages = images.length + selectedFiles.length;
+      if (totalImages > 5) {
+        alert("You can upload a maximum of 5 images.");
+        return;
+      }
+
+      // Valid image MIME types
+      const validTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      const invalidFiles = selectedFiles.filter(
+        (file) => !validTypes.includes(file.type)
+      );
+      if (invalidFiles.length > 0) {
+        alert("Only image files (JPEG, JPG, PNG, GIF, WebP) are allowed.");
+        return;
+      }
+
+      // Check individual image sizes (max 5MB)
+      const maxSize = 5 * 1024 * 1024;
+      const oversizedFiles = selectedFiles.filter(
+        (file) => file.size > maxSize
+      );
+      if (oversizedFiles.length > 0) {
+        alert("Each image must be smaller than 5MB.");
+        return;
+      }
+
+      // Append images and preview URLs
+      const newPreviewUrls = selectedFiles.map((file) =>
+        URL.createObjectURL(file)
+      );
+      setImages((prev) => [...prev, ...selectedFiles]);
+      setImagePreviewUrls((prev) => [...prev, ...newPreviewUrls]);
     } else {
+      // Text/select input handling
       setForm((prev) => ({
         ...prev,
         [name]: value,
-        // Reset subcategory when category changes
-        ...(name === "category_id" && {
-          sub_category_id: "",
-        }),
+        ...(name === "category_id" && { subcategory_id: "" }),
       }));
 
-      // Fetch subcategories when category is selected
-      if (name === "category_id" && value) {
-        console.log("Category selected:", value);
-        fetchSubCategories(value);
-      } else if (name === "category_id" && !value) {
-        // Clear subcategories when no category is selected
-        setFilteredSubCategories([]);
+      // Trigger subcategory fetching logic
+      if (name === "category_id") {
+        if (value) {
+          fetchSubCategories(value);
+        } else {
+          setFilteredSubCategories([]);
+        }
       }
     }
   };
 
+  // Remove image from selection
+  const removeImage = (indexToRemove) => {
+    const updatedImages = images.filter((_, index) => index !== indexToRemove);
+    const updatedPreviewUrls = imagePreviewUrls.filter(
+      (_, index) => index !== indexToRemove
+    );
+
+    // Revoke the URL to free up memory
+    URL.revokeObjectURL(imagePreviewUrls[indexToRemove]);
+
+    setImages(updatedImages);
+    setImagePreviewUrls(updatedPreviewUrls);
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation - only category is required, subcategory is optional
-    if (!form.category_id) {
-      alert("Please select a category");
-      return;
-    }
+    setLoading(true);
 
     try {
-      setLoading(true);
-      const fd = new FormData();
+      const authHeaders = getAuthHeaders();
+      if (!authHeaders) {
+        alert("Authentication required. Please login.");
+        return;
+      }
 
-      // Append all form data to FormData
-      Object.entries(form).forEach(([key, val]) => {
-        if (key === "images") {
-          // Handle multiple image files
-          for (const img of val) {
-            fd.append("images", img);
-          }
-        } else if (key === "primary_image_url" && val instanceof File) {
-          // Handle primary image file
-          fd.append("primary_image_url", val);
-        } else if (!(val instanceof File)) {
-          // Handle other form fields (not files)
-          // Only append non-empty values, or convert empty strings to null for optional fields
-          if (key === "sub_category_id" && !val) {
-            fd.append(key, ""); // Send empty string for optional subcategory
-          } else {
-            fd.append(key, val);
-          }
+      // Get vendor ID
+      const vendorId = getVendorId();
+      if (!vendorId && !editingId) {
+        alert("Vendor ID not found. Please refresh the page and try again.");
+        return;
+      }
+
+      const formData = new FormData();
+
+      // Validate required fields for new products
+      if (!editingId) {
+        const requiredFields = ['name', 'price', 'stock_quantity', 'category_id'];
+        const missingFields = requiredFields.filter(field => !form[field]);
+        
+        if (missingFields.length > 0) {
+          alert(`Please fill in required fields: ${missingFields.join(', ')}`);
+          return;
         }
-      });
+      }
 
-      let response;
+      // Create a copy of form data with only non-empty fields for updates
+      const dataToSubmit = {};
+
       if (editingId) {
-        response = await axios.put(`https://vendor1.onrender.com/api/products/${editingId}`, fd, {
-          headers: {
-            ...getAuthHeaders(),
-            "Content-Type": "multipart/form-data",
-          },
+        // For updates, only include fields that have values
+        Object.keys(form).forEach((key) => {
+          if (
+            form[key] !== "" &&
+            form[key] !== null &&
+            form[key] !== undefined
+          ) {
+            dataToSubmit[key] = form[key];
+          }
         });
       } else {
-        response = await axios.post("https://vendor1.onrender.com/api/products", fd, {
-          headers: {
-            ...getAuthHeaders(),
-            "Content-Type": "multipart/form-data",
-          },
+        // For new products, include all fields
+        Object.keys(form).forEach((key) => {
+          if (form[key] !== "") {
+            dataToSubmit[key] = form[key];
+          }
+        });
+
+        // Add vendor ID for new products
+        dataToSubmit.vendor_id = vendorId;
+      }
+
+      // Append form fields to FormData
+      Object.keys(dataToSubmit).forEach((key) => {
+        formData.append(key, dataToSubmit[key]);
+      });
+
+      // Append images properly (only if new images are selected)
+      if (images.length > 0) {
+        images.forEach((image) => {
+          formData.append("images", image);
         });
       }
 
-      console.log("Product saved successfully:", response.data);
-      
-      // Reset form and close modal
-      setForm(initialForm());
-      setShowForm(false);
-      setEditingId(null);
-      setFilteredSubCategories([]);
-      
-      // Refresh products list
-      await fetchProducts();
-      
-      alert(editingId ? "Product updated successfully!" : "Product added successfully!");
-    } catch (err) {
-      console.error("Error saving product:", err.response || err.message);
-      if (err.response?.status === 401) {
-        alert("Unauthorized! Please login again.");
+      // Debug: Log the data being sent
+      console.log("Submitting product data:", dataToSubmit);
+      console.log("Images count:", images.length);
+      console.log("Vendor ID:", vendorId);
+
+      // Set headers with auth
+      const headers = {
+        ...authHeaders,
+        "Content-Type": "multipart/form-data",
+      };
+
+      let response;
+      if (editingId) {
+        response = await api.put(`/products/update/${editingId}`, formData, {
+          headers,
+        });
       } else {
-        const errorMsg = err.response?.data?.message || "Error saving product. Please try again.";
-        alert(errorMsg);
+        response = await api.post("/products/add", formData, {
+          headers,
+        });
+      }
+
+      console.log("Product submission response:", response.data);
+
+      await fetchProducts();
+      resetForm();
+      alert(
+        editingId
+          ? "Product updated successfully!"
+          : "Product added successfully!"
+      );
+    } catch (error) {
+      console.error("Error submitting product:", error);
+      
+      if (error.response?.status === 401) {
+        alert("Session expired. Please login again.");
+      } else if (error.response?.status === 403) {
+        alert("You don't have permission to perform this action.");
+      } else {
+        const errorMessage = error.response?.data?.message || 
+                            error.response?.data?.error ||
+                            "Error submitting product. Please try again.";
+        alert(errorMessage);
+        console.error("Detailed error:", error.response?.data);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (prod) => {
-    console.log("Editing product:", prod);
-    
-    // Fetch subcategories for the product's category if it has one
-    if (prod.category_id) {
-      fetchSubCategories(prod.category_id);
-    }
-
-    // Set form data (clear images array as existing images are URLs)
-    setForm({ 
-      ...prod, 
-      images: [], // Clear new file uploads
-      primary_image_url: "", // Clear primary image file
-      sub_category_id: prod.sub_category_id || "" // Handle cases where subcategory might be null
+  // Reset form to initial state
+  const resetForm = () => {
+    setForm({
+      name: "",
+      description: "",
+      brand: "",
+      price: "",
+      discount_percentage: "",
+      stock_quantity: "",
+      unit: "",
+      category_id: "",
+      subcategory_id: "",
     });
-    setEditingId(prod.id);
-    setShowForm(true);
+
+    // Clean up preview URLs
+    imagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+
+    setImages([]);
+    setImagePreviewUrls([]);
+    setEditingId(null);
+    setFormVisible(false);
+    setFilteredSubCategories([]);
+
+    // Clear file input
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+      fileInput.value = "";
+    }
   };
 
+  // Handle edit product
+  const handleEdit = (product) => {
+    if (!isAuthenticated()) {
+      alert("Please login to edit products");
+      return;
+    }
+
+    setForm({
+      name: product.name || "",
+      description: product.description || "",
+      brand: product.brand || "",
+      price: product.price || "",
+      discount_percentage: product.discount_percentage || "",
+      stock_quantity: product.stock_quantity || "",
+      unit: product.unit || "",
+      category_id: product.category_id || "",
+      subcategory_id: product.subcategory_id || "",
+    });
+    setEditingId(product.id);
+    setFormVisible(true);
+
+    // Fetch subcategories for the selected category when editing
+    if (product.category_id) {
+      fetchSubCategories(product.category_id);
+    }
+  };
+
+  // Handle delete product
   const handleDelete = async (id) => {
+    if (!isAuthenticated()) {
+      alert("Please login to delete products");
+      return;
+    }
+
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        setLoading(true);
-        await axios.delete(`https://vendor1.onrender.com/api/products/${id}`, {
-          headers: getAuthHeaders(),
+        const authHeaders = getAuthHeaders();
+        if (!authHeaders) return;
+
+        await api.delete(`/products/delete/${id}`, {
+          headers: authHeaders,
         });
+        
         await fetchProducts();
         alert("Product deleted successfully!");
-      } catch (err) {
-        console.error("Error deleting product:", err.response || err.message);
-        if (err.response?.status === 401) {
-          alert("Unauthorized! Please login again.");
+      } catch (error) {
+        console.error("Error deleting product:", error);
+        
+        if (error.response?.status === 401) {
+          alert("Session expired. Please login again.");
+        } else if (error.response?.status === 403) {
+          alert("You don't have permission to delete this product.");
         } else {
           alert("Error deleting product. Please try again.");
         }
-      } finally {
-        setLoading(false);
       }
     }
   };
 
-  const handleAddProduct = () => {
-    setForm(initialForm());
-    setFilteredSubCategories([]);
-    setEditingId(null);
-    setShowForm(true);
-  };
+  // Pagination calculations
+  const indexOfLast = currentPage * productsPerPage;
+  const indexOfFirst = indexOfLast - productsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
 
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setForm(initialForm());
-    setEditingId(null);
-    setFilteredSubCategories([]);
-  };
-
-  useEffect(() => {
-    // Fetch all data on component mount
-    const fetchAllData = async () => {
-      await Promise.all([
-        fetchProducts(),
-        fetchCategories(),
-        fetchSubCategories() // Fetch all subcategories initially
-      ]);
-    };
-    
-    fetchAllData();
-  }, []);
-
-  // Helper function to get category name by ID
-  const getCategoryName = (categoryId) => {
-    if (!categoryId) return "-";
-    const category = categories.find(cat => String(cat.id) === String(categoryId));
-    return category ? (category.name_en || category.name || category.title) : "-";
-  };
-
-  // Helper function to get subcategory name by ID
-  const getSubCategoryName = (subCategoryId) => {
-    if (!subCategoryId) return "-";
-    // Look in both filtered subcategories and all subcategories
-    const subCategory = filteredSubCategories.find(sub => String(sub.id) === String(subCategoryId)) ||
-                       subCategories.find(sub => String(sub.id) === String(subCategoryId));
-    return subCategory ? (subCategory.name_en || subCategory.name || subCategory.title) : "-";
-  };
-
-  // Safe image parser
-  const parseProductImages = (images) => {
-    if (!images) return [];
-    if (Array.isArray(images)) return images;
-    if (typeof images === "string") {
-      try {
-        const parsed = JSON.parse(images);
-        if (Array.isArray(parsed)) return parsed;
-        if (typeof parsed === "string") return [parsed];
-      } catch {
-        return [images];
-      }
-    }
-    return [];
-  };
-
+  // Show login message if not authenticated
+  if (!isAuthenticated()) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p className="mb-4">Please login to access the Product Management page.</p>
+          <button 
+            onClick={() => window.location.href = '/login'}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-100">
-      <Sidebar isSidebarOpen={isSidebarOpen} />
-      <div
-        className={`flex-1 transition-all duration-300 bg-gray-100 ${
-          isSidebarOpen ? "ml-0 md:ml-64" : "ml-0 md:ml-20"
-        }`}
-      >
-        <Header isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
 
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Manage Products</h2>
+      <div
+        className={`transition-all duration-300 ${
+          isSidebarOpen ? "ml-64" : "ml-20"
+        } w-full`}
+      >
+        <div className="sticky top-0 z-20 bg-white shadow-sm">
+          <Header
+            title="Product Management"
+            setIsSidebarOpen={setIsSidebarOpen}
+            isSidebarOpen={isSidebarOpen}
+          />
+        </div>
+
+        <div className="p-4 space-y-6">
+          {/* Action Bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search by product name..."
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
             <button
-              onClick={handleAddProduct}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors duration-200"
-              disabled={loading}
+              onClick={() => setFormVisible(!formVisible)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200"
             >
-              + Add Product
+              {formVisible ? "Close Form" : "Add Product"}
             </button>
           </div>
 
-          {/* Product Form Modal */}
-          {showForm && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-              <div className="bg-white p-6 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
-                <button
-                  onClick={handleCloseForm}
-                  className="absolute right-4 top-4 text-2xl hover:text-red-500 transition-colors"
-                  aria-label="Close"
-                  disabled={loading}
-                >
-                  ×
-                </button>
-                
-                <h3 className="text-xl font-semibold mb-6 text-gray-800">
+          {/* Form Section */}
+          {formVisible && (
+            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <h3 className="text-lg font-semibold text-white">
                   {editingId ? "Edit Product" : "Add New Product"}
                 </h3>
-                
-                <form onSubmit={handleSubmit} className="grid gap-4">
-                  {/* Product Name Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Product Name (English) *
-                      </label>
-                      <input
-                        name="name_en"
-                        value={form.name_en}
-                        onChange={handleInput}
-                        placeholder="Enter product name in English"
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                        disabled={loading}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Product Name (Hindi)
-                      </label>
-                      <input
-                        name="name_hi"
-                        value={form.name_hi}
-                        onChange={handleInput}
-                        placeholder="Enter product name in Hindi"
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
+              </div>
 
-                  {/* Category and Subcategory */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Category *
-                      </label>
-                      <select
-                        name="category_id"
-                        value={form.category_id}
-                        onChange={handleInput}
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                        disabled={loading || categoriesLoading}
-                      >
-                        <option value="">Select a category</option>
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name_en || cat.name || cat.title}
-                          </option>
-                        ))}
-                      </select>
-                      {categoriesLoading && (
-                        <p className="text-sm text-blue-500 mt-1">Loading categories...</p>
-                      )}
-                      {!categoriesLoading && categories.length === 0 && (
-                        <p className="text-sm text-red-500 mt-1">No categories found</p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subcategory (Optional)
-                      </label>
-                      <select
-                        name="sub_category_id"
-                        value={form.sub_category_id}
-                        onChange={handleInput}
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                        disabled={loading || subCategoriesLoading || !form.category_id}
-                      >
-                        <option value="">
-                          {!form.category_id 
-                            ? "First select a category" 
-                            : subCategoriesLoading
-                            ? "Loading subcategories..."
-                            : filteredSubCategories.length === 0 
-                            ? "No subcategories available (Optional)" 
-                            : "Select a subcategory (Optional)"
-                          }
-                        </option>
-                        {filteredSubCategories.map((sub) => (
-                          <option key={sub.id} value={sub.id}>
-                            {sub.name_en || sub.name || sub.title}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Subcategory is optional - you can add products without selecting one
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Price Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        MRP (₹)
-                      </label>
-                      <input
-                        name="mrp"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.mrp}
-                        onChange={handleInput}
-                        placeholder="Enter MRP"
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={loading}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Selling Price (₹)
-                      </label>
-                      <input
-                        name="selling_price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.selling_price}
-                        onChange={handleInput}
-                        placeholder="Enter selling price"
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Pack Size and Stock */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Pack Size
-                      </label>
-                      <input
-                        type="text"
-                        name="pack_size"
-                        value={form.pack_size}
-                        onChange={handleInput}
-                        placeholder="e.g., 1kg, 500ml, 12 pieces"
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={loading}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Stock Quantity
-                      </label>
-                      <input
-                        type="number"
-                        name="stock_quantity"
-                        min="0"
-                        value={form.stock_quantity}
-                        onChange={handleInput}
-                        placeholder="Enter stock quantity"
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Image Upload Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Primary Image
-                      </label>
-                      <input
-                        type="file"
-                        name="primary_image_url"
-                        onChange={handleInput}
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        accept="image/*"
-                        disabled={loading}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Additional Images
-                      </label>
-                      <input
-                        type="file"
-                        name="images"
-                        onChange={handleInput}
-                        multiple
-                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        accept="image/*"
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Active Status
-                  <div className="flex items-center gap-3">
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Product Name {!editingId ? "*" : ""}
+                    </label>
                     <input
-                      type="checkbox"
-                      name="is_active"
-                      id="is_active"
-                      checked={form.is_active}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          is_active: e.target.checked,
-                        }))
-                      }
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      name="name"
+                      placeholder="Enter product name"
+                      value={form.name}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!editingId}
                       disabled={loading}
                     />
-                    <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                      Product is active
-                    </label>
-                  </div> */}
-                  {/* Active Status */}
-<div className="flex items-center gap-3">
-  <input
-    type="checkbox"
-    name="active"
-    id="active"
-    checked={!!form.active} // force boolean
-    onChange={(e) =>
-      setForm((prev) => ({
-        ...prev,
-        active: e.target.checked,
-      }))
-    }
-    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-    disabled={loading}
-  />
-  <label htmlFor="active" className="text-sm font-medium text-gray-700">
-    Product is active
-  </label>
-</div>
-
-
-                  {/* Submit Button */}
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors duration-200 disabled:bg-gray-400"
-                      disabled={loading}
-                    >
-                      {loading ? "Saving..." : editingId ? "Update Product" : "Add Product"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCloseForm}
-                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
                   </div>
-                </form>
-              </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Brand {!editingId ? "*" : ""}
+                    </label>
+                    <input
+                      name="brand"
+                      placeholder="Enter brand name"
+                      value={form.brand}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!editingId}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Unit {!editingId ? "*" : ""}
+                    </label>
+                    <input
+                      name="unit"
+                      placeholder="e.g. kg, piece, liter"
+                      value={form.unit}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!editingId}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Description {!editingId ? "*" : ""}
+                  </label>
+                  <textarea
+                    name="description"
+                    placeholder="Enter product description"
+                    value={form.description}
+                    onChange={handleInput}
+                    rows={3}
+                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    required={!editingId}
+                    disabled={loading}
+                  />
+                </div>
+
+                {/* Pricing and Stock */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Price (₹) {!editingId ? "*" : ""}
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      placeholder="0.00"
+                      value={form.price}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!editingId}
+                      min="0"
+                      step="0.01"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Stock Quantity {!editingId ? "*" : ""}
+                    </label>
+                    <input
+                      type="number"
+                      name="stock_quantity"
+                      placeholder="0"
+                      value={form.stock_quantity}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!editingId}
+                      min="0"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Discount (%)
+                    </label>
+                    <input
+                      type="number"
+                      name="discount_percentage"
+                      placeholder="0"
+                      value={form.discount_percentage}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      max="100"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                {/* Category Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Category {!editingId ? "*" : ""}
+                    </label>
+                    <select
+                      name="category_id"
+                      value={form.category_id}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!editingId}
+                      disabled={loading || categoriesLoading}
+                    >
+                      <option value="">
+                        {categoriesLoading
+                          ? "Loading categories..."
+                          : "Select Category"}
+                      </option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name_en || cat.name || cat.title}
+                        </option>
+                      ))}
+                    </select>
+                    {categoriesLoading && (
+                      <p className="text-xs text-blue-500">
+                        Loading categories...
+                      </p>
+                    )}
+                    {!categoriesLoading && categories.length === 0 && (
+                      <p className="text-xs text-red-500">
+                        No categories found
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Subcategory
+                    </label>
+                    <select
+                      name="subcategory_id"
+                      value={form.subcategory_id}
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      disabled={
+                        loading || subCategoriesLoading || !form.category_id
+                      }
+                    >
+                      <option value="">
+                        {!form.category_id
+                          ? "First select a category"
+                          : subCategoriesLoading
+                          ? "Loading subcategories..."
+                          : filteredSubCategories.length === 0
+                          ? "No subcategories (Optional)"
+                          : "Select Subcategory (Optional)"}
+                      </option>
+                      {filteredSubCategories.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name_en || sub.name || sub.title}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      Subcategory is optional
+                    </p>
+                  </div>
+                </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Product Images{" "}
+                      {editingId
+                        ? "(Upload new images to replace existing ones)"
+                        : ""}
+                    </label>
+                    <input
+                      type="file"
+                      name="images"
+                      multiple
+                      accept="image/*"
+                      onChange={handleInput}
+                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-600">
+                      Upload up to 5 images (JPEG, PNG, GIF, WebP). Max 5MB per
+                      image.
+                      {editingId &&
+                        " Leave empty if you don't want to change images."}
+                    </p>
+                  </div>
+
+                  {/* Image Preview Section */}
+                  {imagePreviewUrls.length > 0 && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Selected Images ({images.length}/5)
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                        {imagePreviewUrls.map((url, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600"
+                              disabled={loading}
+                            >
+                              ×
+                            </button>
+                            <div className="absolute bottom-1 left-1 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4 border-t border-gray-200">
+                  <button
+                    type="submit"
+                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <span className="flex items-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : editingId ? (
+                      "Update Product"
+                    ) : (
+                      "Add Product"
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
           {/* Products Table */}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-white shadow-sm rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-600">
-                <thead className="bg-gray-50 border-b">
+              <table className="min-w-full bg-white border rounded shadow">
+                <thead className="bg-gray-100 sticky top-0 z-10">
                   <tr>
-                    <th className="p-4 font-medium">ID</th>
-                    <th className="p-4 font-medium">Name (EN)</th>
-                    <th className="p-4 font-medium">Category</th>
-                    <th className="p-4 font-medium">Subcategory</th>
-                    <th className="p-4 font-medium">MRP</th>
-                    <th className="p-4 font-medium">Selling Price</th>
-                    <th className="p-4 font-medium">Stock</th>
-                    <th className="p-4 font-medium">Images</th>
-                    <th className="p-4 font-medium">Status</th>
-                    <th className="p-4 font-medium">Actions</th>
+                    <th className="p-2 border">Image</th>
+                    <th className="p-2 border">Name</th>
+                    <th className="p-2 border">Price</th>
+                    <th className="p-2 border">Stock</th>
+                    <th className="p-2 border">Discount</th>
+                    <th className="p-2 border">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="10" className="text-center p-8">
-                        <div className="flex justify-center items-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                          <span className="ml-2">Loading products...</span>
-                        </div>
+                  {currentProducts.map((p) => (
+                    <tr key={p.id} className="text-center">
+                      <td className="p-2 border">
+                        <img
+                          src={`http://localhost:5000${
+                            p.images?.find((img) => img.is_primary)
+                              ?.image_url || ""
+                          }`}
+                          alt={p.name}
+                          className="w-16 h-16 object-cover mx-auto rounded"
+                        />
+                      </td>
+                      <td className="p-2 border">{p.name}</td>
+                      <td className="p-2 border">₹{p.discounted_price}</td>
+                      <td className="p-2 border">{p.stock_quantity}</td>
+                      <td className="p-2 border">{p.discount_percentage}%</td>
+                      <td className="p-2 border space-x-2">
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="bg-yellow-500 px-3 py-1 rounded text-white hover:bg-yellow-600 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(p.id)}
+                          className="bg-red-600 px-3 py-1 rounded text-white hover:bg-red-700 transition-colors"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
-                  ) : products.length === 0 ? (
+                  ))}
+                  {currentProducts.length === 0 && (
                     <tr>
-                      <td colSpan="10" className="text-center p-8 text-gray-500">
-                        No products found. Click "Add Product" to create your first product.
+                      <td colSpan="6" className="text-center p-4 text-gray-500">
+                        No products found.
                       </td>
                     </tr>
-                  ) : (
-                    products.map((prod) => (
-                      <tr key={prod.id} className="border-b hover:bg-gray-50 transition-colors">
-                        <td className="p-4 font-medium">{prod.id}</td>
-                        <td className="p-4">
-                          <div className="font-medium text-gray-900">{prod.name_en}</div>
-                          {prod.name_hi && <div className="text-sm text-gray-500">{prod.name_hi}</div>}
-                        </td>
-                        <td className="p-4">
-                          {prod.category_name || getCategoryName(prod.category_id)}
-                        </td>
-                        <td className="p-4">
-                          {prod.sub_category_name || getSubCategoryName(prod.sub_category_id)}
-                        </td>
-                        <td className="p-4">₹{prod.mrp || "-"}</td>
-                        <td className="p-4">₹{prod.selling_price || "-"}</td>
-                        <td className="p-4">{prod.stock_quantity || 0}</td>
-                        <td className="p-4">
-                          <div className="flex gap-1 flex-wrap">
-                            {parseProductImages(prod.images).slice(0, 3).map((img, i) => {
-                              if (typeof img !== "string") return null;
-                              const src = img.startsWith("http")
-                                ? img
-                                : `https://vendor1.onrender.com${img}`;
-                              return (
-                                <img
-                                  key={i}
-                                  src={src}
-                                  alt={`product-img-${i}`}
-                                  className="w-12 h-12 object-cover rounded border"
-                                />
-                              );
-                            })}
-                            {parseProductImages(prod.images).length > 3 && (
-                              <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-600">
-                                +{parseProductImages(prod.images).length - 3}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            prod.active 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                            {prod.active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEdit(prod)}
-                              className="text-blue-600 hover:text-blue-900 transition-colors"
-                              aria-label="Edit product"
-                              disabled={loading}
-                            >
-                              <Pencil size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(prod.id)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
-                              aria-label="Delete product"
-                              disabled={loading}
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
                   )}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="flex justify-center items-center mt-4 space-x-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              className="px-3 py-1 bg-gray-200 rounded"
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-3 py-1 rounded ${
+                  currentPage === i + 1
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              className="px-3 py-1 bg-gray-200 rounded"
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
