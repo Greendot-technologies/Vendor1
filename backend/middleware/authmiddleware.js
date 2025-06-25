@@ -1,4 +1,3 @@
-
 // // const jwt = require("jsonwebtoken");
 
 // // const verifyToken = (req, res, next) => {
@@ -55,10 +54,19 @@
 // };
 
 // module.exports = { verifyToken, authorizeRoles };
+
 const jwt = require("jsonwebtoken");
 
 // Middleware to verify JWT token and store id, role, email
 const verifyToken = (req, res, next) => {
+  // Ensure the JWT secret is loaded
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET is not defined in environment variables.");
+    return res
+      .status(500)
+      .json({ error: "Server configuration error: JWT secret missing" });
+  }
+
   const authHeader = req.headers["authorization"];
   const token = authHeader?.split(" ")[1]; // Expecting "Bearer <token>"
 
@@ -78,7 +86,7 @@ const verifyToken = (req, res, next) => {
     req.user = {
       id: decoded.id,
       role: decoded.role,
-      email: decoded.email
+      email: decoded.email,
     };
 
     next();
@@ -94,7 +102,9 @@ const authorizeRoles = (...roles) => {
     const userRole = req.user?.role;
 
     if (!userRole || !roles.includes(userRole)) {
-      return res.status(403).json({ error: "Access denied: insufficient role" });
+      return res
+        .status(403)
+        .json({ error: "Access denied: insufficient role" });
     }
 
     next();
