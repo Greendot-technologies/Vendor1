@@ -2,7 +2,8 @@ const vendorDashboardModule = require('../model/vendorDashboardModule');
 
 const getAllLocations = async (req, res) => {
   try {
-    const locations = await vendorDashboardModule.getAllLocations();
+    const vendorProfileId = req.user.id; // From JWT token
+    const locations = await vendorDashboardModule.getAllLocations(vendorProfileId);
     // Transform data into a hierarchical structure
     const result = locations.reduce((acc, row) => {
       let country = acc.find(c => c.id === row.country_id);
@@ -36,7 +37,8 @@ const getAllLocations = async (req, res) => {
               city.pincodes.push({
                 id: row.pincode_id,
                 pincode: row.pincode,
-                is_enabled: row.pincode_enabled
+                is_enabled: row.pincode_enabled,
+                vendor_profile_id: row.vendor_profile_id
               });
             }
           }
@@ -55,9 +57,10 @@ const getAllLocations = async (req, res) => {
 
 const enablePincode = async (req, res) => {
   const { pincode_id } = req.params;
+  const vendorProfileId = req.user.id; // From JWT token
 
   try {
-    const result = await vendorDashboardModule.togglePincodeStatus(pincode_id, true);
+    const result = await vendorDashboardModule.togglePincodeStatus(pincode_id, true, vendorProfileId);
     res.status(200).json({ message: 'Pincode enabled successfully', data: result });
   } catch (error) {
     console.error(error);
@@ -67,9 +70,10 @@ const enablePincode = async (req, res) => {
 
 const disablePincode = async (req, res) => {
   const { pincode_id } = req.params;
+  const vendorProfileId = req.user.id; // From JWT token
 
   try {
-    const result = await vendorDashboardModule.togglePincodeStatus(pincode_id, false);
+    const result = await vendorDashboardModule.togglePincodeStatus(pincode_id, false, vendorProfileId);
     res.status(200).json({ message: 'Pincode disabled successfully', data: result });
   } catch (error) {
     console.error(error);

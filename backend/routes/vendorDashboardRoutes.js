@@ -3,16 +3,43 @@ const { verifyToken, authorizeRoles } = require('../middleware/authmiddleware');
 const vendorDashboardController = require('../controller/vendorDashboardController');
 const router = express.Router();
 
-// Fetch all locations
-router.get('/locations', verifyToken, authorizeRoles('vendor'), vendorDashboardController.getAllLocations);
+module.exports = (controllers) => {
+  // Fetch all locations
+  router.get('/locations', verifyToken, authorizeRoles('vendor', 'company', 'service'), vendorDashboardController.getAllLocations);
 
-// Enable a pincode
-router.put('/pincodes/:pincode_id/enable', verifyToken, authorizeRoles('vendor'), vendorDashboardController.enablePincode);
+  // Enable a pincode
+  router.put('/pincodes/:pincode_id/enable', verifyToken, authorizeRoles('vendor', 'company', 'service'), vendorDashboardController.enablePincode);
 
-// Disable a pincode
-router.put('/pincodes/:pincode_id/disable', verifyToken, authorizeRoles('vendor'), vendorDashboardController.disablePincode);
+  // Disable a pincode
+  router.put('/pincodes/:pincode_id/disable', verifyToken, authorizeRoles('vendor', 'company', 'service'), vendorDashboardController.disablePincode);
 
-module.exports = router;
+  return router;
+};
+
+
+
+
+
+
+
+
+// const express = require('express');
+// const { verifyToken, authorizeRoles } = require('../middleware/authmiddleware');
+// const vendorDashboardController = require('../controller/vendorDashboardController');
+// const router = express.Router();
+
+// // Fetch all locations
+// router.get('/locations', verifyToken, authorizeRoles('vendor'), vendorDashboardController.getAllLocations);
+
+// // Enable a pincode
+// router.put('/pincodes/:pincode_id/enable', verifyToken, authorizeRoles('vendor'), vendorDashboardController.enablePincode);
+
+// // Disable a pincode
+// router.put('/pincodes/:pincode_id/disable', verifyToken, authorizeRoles('vendor'), vendorDashboardController.disablePincode);
+
+// module.exports = router;
+
+
 
 
 // const vendorDashboardModule = require('../model/vendorDashboardModule');
