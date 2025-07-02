@@ -24,7 +24,7 @@ const Home = ({ onLoginSuccess, adminData, onLogout, setAdminData }) => {
       <div className="flex flex-1 items-center justify-center px-4 text-center">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold text-whit-500 mb-4">
-            Welcome to AgriVedh Portal
+            Welcome to FarmsEasy Portal
           </h1>
           <p className="text-lg text-gray-600">
             Manage your  sales, and profile – all in one place.

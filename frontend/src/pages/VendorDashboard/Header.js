@@ -180,7 +180,7 @@ export const Header = ({ isSidebarOpen, setIsSidebarOpen }) => {
         <div className="relative">
           <button onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)} className="flex items-center gap-3">
             {/* <img src={user?.photo || profilePlaceholder} alt="User" className="h-8 w-8 rounded-full object-cover" /> */}
-            <span className="text-gray-700 hidden md:inline">{user?.name || "Admin"}</span>
+            <span className="text-gray-700 hidden md:inline">{user?.name || "Vendor"}</span>
             <FiChevronDown className="text-gray-600" />
           </button>
 

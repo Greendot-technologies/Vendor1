@@ -132,7 +132,7 @@ const ProductManagement = () => {
       const authHeaders = getAuthHeaders();
       if (!authHeaders) return;
 
-      const res = await api.get("/category/categories", {
+      const res = await api.get("/category", {
         headers: authHeaders,
       });
       console.log("Categories fetched from database:", res.data);
@@ -153,7 +153,7 @@ const ProductManagement = () => {
         const authHeaders = getAuthHeaders();
         if (!authHeaders) return;
 
-        const fallbackRes = await api.get("/category/categories",
+        const fallbackRes = await api.get("/category",
           {
             headers: authHeaders,
           }

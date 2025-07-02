@@ -7,7 +7,8 @@ const { verifyToken, authorizeRoles } = require("../middleware/authmiddleware");
 
 router.post('/request',verifyToken,controller.requestSubCategory);
 // router.patch('/approve/:id',controller.approveSubCategory);
-router.get('/approved', controller.getApproved);
-router.get('/pending-approvals', controller.getPendingApprovals);
+router.get('/approved', verifyToken,controller.getApproved);
+router.get('/pending-approvals',verifyToken, controller.getPendingApprovals);
+router.get('/all-subcategories',verifyToken, controller.getAllSubcategories);
 
 module.exports = router

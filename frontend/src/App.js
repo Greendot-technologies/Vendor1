@@ -11,19 +11,14 @@ import {
 
 import Home from "./pages/Home";
 import { logoutVendor } from "./services/apiService";
-// import FlightBooking from "./components/FlightBooking";
-// import FlightResult from "./pages/FligthResults";
+
 import { AuthProvider } from "./context/AuthContext";
-// import Dashboard from "./pages/Dashboard";
-// import MyBookings from "./pages/MyBookings";
-// import Accounts from "./pages/Accounts";
-// import Sales from "./pages/Sales";
-// import Profile from "./pages/Profile";
-// import CompanyDashboard from "./pages/CompanyDashboard/CompanyDashboard";
+
 import VendorDashboard from "./pages/VendorDashboard/VendorDashboard";
 import ProductManagement from "./pages/VendorDashboard/ProductManagement";
 import SubCategory from "./pages/VendorDashboard/SubCategory";
 import ShopManagement from './pages/VendorDashboard/ShopManagement';
+import LocationService from "./pages/VendorDashboard/LocationService";
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -62,7 +57,9 @@ const App = () => {
           />
        
           <Route path="/VendorDashboard" element={<VendorDashboard />} />
-      
+          <Route path="/LocationService" element={<LocationService />} />
+          
+          {/* Vendor Dashboard Routes */}
           <Route path="/SubCategory" element={<SubCategory/>} />
           <Route path="/ProductManagement" element={<ProductManagement />} />
           <Route path="/ShopManagement" element={<ShopManagement />} />
