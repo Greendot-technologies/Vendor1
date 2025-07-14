@@ -335,3 +335,44 @@ exports.getAllSubcategories = async (req, res) => {
   }
 };
 
+
+// Get approved subcategories by category_id and vendor_id
+exports.getApprovedByCategoryAndVendor = async (req, res) => {
+  const vendor_id = req.user.id;
+  const { category_id } = req.query;
+
+  if (!category_id) {
+    return res.status(400).json({ message: 'category_id is required' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT s.id, s.name_en, s.slug, s.description, c.name_en AS category_name,
+              s.remark,
+              CASE
+                WHEN s.approved_by_admin = true THEN 'approved'
+                WHEN s.approved_by_admin = false AND s.remark IS NOT NULL THEN 'rejected'
+                ELSE 'pending'
+              END AS status
+       FROM sub_categories s
+       JOIN categories c ON s.category_id = c.id
+       WHERE s.is_active = true
+         AND s.approved_by_admin = true
+         AND s.vendor_id = $1
+         AND s.category_id = $2
+       ORDER BY s.id DESC`,
+      [vendor_id, category_id]
+    );
+
+    res.status(200).json({
+      message: 'Approved subcategories fetched successfully',
+      subcategories: result.rows,
+    });
+  } catch (err) {
+    console.error('Error in getApprovedByCategoryAndVendor:', err.message);
+    res.status(500).json({
+      message: 'Error fetching approved subcategories by category and vendor',
+      error: err.message,
+    });
+  }
+};

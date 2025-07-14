@@ -10,5 +10,7 @@ router.post('/request',verifyToken,controller.requestSubCategory);
 router.get('/approved', verifyToken,controller.getApproved);
 router.get('/pending-approvals',verifyToken, controller.getPendingApprovals);
 router.get('/all-subcategories',verifyToken, controller.getAllSubcategories);
+router.get('/approved/by-category', verifyToken, controller.getApprovedByCategoryAndVendor);
+
 
 module.exports = router

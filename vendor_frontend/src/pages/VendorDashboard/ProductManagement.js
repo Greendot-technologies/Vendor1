@@ -179,9 +179,10 @@ const ProductManagement = () => {
 
       let endpoint;
       if (categoryId) {
-        endpoint = `/categories/${categoryId}/subcategories`;
-      } else {
-        endpoint = "/user/approved";
+  endpoint = `/user/approved/by-category?category_id=${categoryId}`;
+}
+ else {
+        endpoint = "http://localhost:5000/api/user/approved";
       }
 
       const res = await api.get(endpoint, {
