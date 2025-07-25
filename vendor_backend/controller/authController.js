@@ -28,7 +28,7 @@ const login = async (req, res) => {
   try {
     // Find user from vendor_profiles (supports both vendor and company roles)
     const result = await pool.query(
-      "SELECT id, name, email, password, password_changed, role FROM vendor_profiles WHERE email = $1 AND role IN ('vendor', 'company')",
+      "SELECT id, name, email, password, password_changed, role FROM vendor_profiles WHERE email = $1 AND role IN ('vendor', 'company' , 'service')",
       [email]
     );
 
@@ -117,7 +117,7 @@ const verifyOTP = async (req, res) => {
   try {
     // Find user with role validation
     const userResult = await pool.query(
-      "SELECT id, name, email, password, password_changed, role FROM vendor_profiles WHERE email = $1 AND role IN ('vendor', 'company')",
+      "SELECT id, name, email, password, password_changed, role FROM vendor_profiles WHERE email = $1 AND role IN ('vendor', 'company', 'service')",
       [email]
     );
 
@@ -332,7 +332,7 @@ const verifyToken = async (req, res, next) => {
 
     // Verify user still exists and has valid role
     const userResult = await pool.query(
-      "SELECT id, name, email, role, password_changed FROM vendor_profiles WHERE id = $1 AND role IN ('vendor', 'company')",
+      "SELECT id, name, email, role, password_changed FROM vendor_profiles WHERE id = $1 AND role IN ('vendor', 'company','service')",
       [decoded.id]
     );
 

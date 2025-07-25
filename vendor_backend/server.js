@@ -22,6 +22,8 @@ const allowedOrigins = [
   "https://vendor-project.netlify.app",
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:3001",
+
 ];
 
 app.use(
@@ -49,7 +51,7 @@ const productRoutes = require("./routes/productRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const vendorDashboardRoutes = require("./routes/vendorDashboardRoutes");
 const vendorLocationRoutes = require("./routes/vendorLocationRoutes");
-
+const authServiceRoutes = require('./routes/authServiceRoutes');
 // API Routes
 app.use("/api/user", authRoutes); // Login/register
 app.use("/api/user", subCategoryRoutes); // Subcategory under user
@@ -57,7 +59,7 @@ app.use("/api/products", productRoutes); // Product-related
 app.use("/api/category", categoryRoutes); // Category-related
 app.use("/api/vendor", vendorDashboardRoutes);
 app.use("/api/vendor-locations", vendorLocationRoutes);
-
+app.use('/api', authServiceRoutes);
 // Fallback route for undefined endpoints
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
