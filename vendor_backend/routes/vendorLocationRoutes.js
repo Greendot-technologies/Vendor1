@@ -11,11 +11,11 @@ router.post(
   authorizeRoles("vendor", "company"),
   controller.addLocation
 );
-router.get("/", verifyToken, authorizeRoles("vendor"), controller.getLocations);
+router.get("/", verifyToken, authorizeRoles("vendor", "company"), controller.getLocations);
 router.put(
   "/toggle/:locationId",
   verifyToken,
-  authorizeRoles("vendor"),
+  authorizeRoles("vendor", "company"),
   controller.toggleLocationStatus
 );
 

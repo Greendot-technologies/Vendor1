@@ -367,6 +367,8 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
+
+
 exports.logoutUser = async (req, res) => {
   try {
     // On frontend, simply remove token from localStorage/sessionStorage
