@@ -311,7 +311,7 @@ export const Sidebar = ({ isSidebarOpen = true, setIsSidebarOpen = () => {} }) =
           </Link>
         </nav>
 
-        <div className="absolute bottom-4 w-full px-3">
+        {/* <div className="absolute bottom-4 w-full px-3">
           <div
             className={`flex items-center px-3 py-2 rounded-lg ${
               isDarkMode
@@ -328,7 +328,7 @@ export const Sidebar = ({ isSidebarOpen = true, setIsSidebarOpen = () => {} }) =
               </>
             )}
           </div>
-        </div>
+        </div> */}
       </aside>
     </>
   );
