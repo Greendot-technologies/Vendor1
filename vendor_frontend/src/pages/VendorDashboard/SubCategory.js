@@ -6,8 +6,11 @@ import { toast } from "react-toastify";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 
-const baseURL = "http://localhost:5000/api/user";
-const categoryURL = "http://localhost:5000/api/category";
+// const baseURL = "http://localhost:5000/api/user";
+// const categoryURL = "http://localhost:5000/api/category";
+
+const baseURL = "http://35.154.158.45:5000/api/user";
+const categoryURL = "http://35.154.158.45:5000/api/category";
 
 const ITEMS_PER_PAGE = 5;
 

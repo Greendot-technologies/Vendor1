@@ -32,8 +32,8 @@
 import axios from "axios";
 
 // ✅ Only declare api ONCE
-const baseURL = "http://localhost:5000/api"; // Change to your deployed backend URL if needed
-// const baseURL = "https://vendor1.onrender.com/api";
+// const baseURL = "http://localhost:5000/api"; // Change to your deployed backend URL if needed
+const baseURL = "http://35.154.158.45:5000/api";
 const api = axios.create({
   baseURL,
 });

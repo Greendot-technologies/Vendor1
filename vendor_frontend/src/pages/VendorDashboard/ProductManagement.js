@@ -1234,7 +1234,7 @@ const ProductManagement = () => {
   endpoint = `/user/approved/by-category?category_id=${categoryId}`;
 }
  else {
-        endpoint = "http://localhost:5000/api/user/approved";
+        endpoint = "http://35.154.158.45:5000/api/user/approved";
       }
 
       const res = await api.get(endpoint, {

@@ -1,6 +1,6 @@
 
-const BASE_URL = "http://localhost:5000/api";
-
+// const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = "http://35.154.158.45:5000/api";
 // Helper function to get the token from localStorage
 const getToken = () => {
   const token = localStorage.getItem("vendor_token");

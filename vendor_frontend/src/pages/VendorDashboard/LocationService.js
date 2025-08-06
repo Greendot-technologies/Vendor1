@@ -184,7 +184,9 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { toast } from "react-toastify";
 
-const API_BASE = "http://localhost:5000/api";
+// const API_BASE = "http://localhost:5000/api";
+
+const API_BASE = "http://35.154.158.45:5000/api";
 
 const LocationService = () => {
   const [locations, setLocations] = useState([]);
